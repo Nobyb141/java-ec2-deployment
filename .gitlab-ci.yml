@@ -1,0 +1,31 @@
+stages:
+  - build
+  - test
+  - deploy
+
+build:
+  stage: build
+  script:
+    - echo "Building the Java application..."
+    - mvn clean package -DskipTests
+  artifacts:
+    paths:
+      - target/*.jar  # Save the .jar file
+
+test:
+  stage: test
+  script:
+    - echo "Running tests..."
+    - mvn test
+
+deploy:
+  stage: deploy
+  before_script:
+    - echo "$PEM_KEY" > /tmp/deploy_key.pem  # Save SSH key to file
+    - chmod 400 /tmp/deploy_key.pem          # Restrict access to key
+  script:
+    - echo "Deploying to AWS EC2..."
+    - scp -o StrictHostKeyChecking=no -i /tmp/deploy_key.pem target/*.jar $EC2_USER@$EC2_IP:/home/$EC2_USER/app/
+    - ssh -o StrictHostKeyChecking=no -i /tmp/deploy_key.pem $EC2_USER@$EC2_IP 'nohup java -jar /home/$EC2_USER/app/your-app.jar > app.log 2>&1 &'
+  only:
+    - main
